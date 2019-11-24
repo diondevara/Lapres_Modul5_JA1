@@ -64,6 +64,14 @@ route add -net 192.168.0.16 netmask 255.255.255.248 gw 192.168.0.10
 PIKACHU menggunakan iptables, namun Satoshi melarang kalian menggunakan MASQUERADE
 karena terlalu mudah.
 
+jawab :
+
+jalankan iptables di UML PIKACHU
+
+```
+iptables -t nat -A POSTROUTING -o eth0 -j SNAT --to-source 10.151.72.10
+```
+
 Karena keberadaan jaringan tersebut sudah mulai diketahui dari oleh jaringan luar, Satoshi pun
 merasa panik, karena merasa jaringannya masih belum aman. 
 
@@ -71,26 +79,76 @@ merasa panik, karena merasa jaringannya masih belum aman.
 untuk mendrop semua akses SSH dari luar Topologi (UML) Kalian pada server yang memiliki ip
 DMZ (DHCP dan DNS SERVER) pada PIKACHU demi menjaga keamanan.
 
+jawab :
+
+jalankan iptables di UML PIKACHU
+
+```
+iptables -A FORWARD -p tcp --dport 22 -d 10.151.73.16/29 -i eth0 -j DROP
+```
+
 3. Karena tim kalian maksimal terdiri dari 2 atau 3 orang saja, Satoshi meminta kalian untuk hanya
 membatasi DHCP dan DNS server hanya boleh menerima maksimal 2 atau 3(jumlah kelompok)
 koneksi ICMP secara bersamaan yang berasal dari mana saja menggunakan iptables pada masing
 masing server, selebihnya akan di DROP.
 
+jawab :
+
+jalankan iptables di UML MEW dan ARTICUNO
+
+```
+iptables -A -p icmp -m connlimit --connlimit-above 2 --connlimit-mask 0 -j DROP
+```
+
 4. Kalian juga diminta untuk mengkonfigurasi PIKACHU untuk dapat membedakan ketika MEW
-diakses dari subnet AJK, akan diarahkan pada MEWTWO dengan port 1234. 
+diakses dari subnet AJK, akan diarahkan pada MEWTWO dengan port 1234.
+
+jawab :
+
+jalankan iptables di UML PIKACHU
+
+```
+iptables -t nat -A PREROUTING -d 10.151.73.19 -s 10.151.36.0/24 -p tcp --dport 1234 -j DNAT --to-destination 192.168.1.130:1234
+```
 
 5. Sedangkan ketika
 diakses dari subnet INFORMATIKA akan diarahkan pada MOLTRES dengan port 1234.
+
+jawab :
+
+jalankan iptables di UML PIKACHU
+
+```
+iptables -t nat -A PREROUTING -d 10.151.73.19 -s 10.151.252.0/22 -p tcp --dport 1234 -j DNAT --to-destination 192.168.1.131:1234
+```
+
 kemudian kalian diminta untuk membatasi akses ke MEW yang berasal dari SUBNET AJK dan
 SUBNET INFORMATIKA dengan peraturan sebagai berikut,:
 
 6. Akses dari subnet AJK hanya diperbolehkan pada pukul 08.00 - 17.00 pada hari Senin sampai
 Jumat,
 
+jawab :
+
+jalankan iptables di UML MEW
+
+```
+iptables -A INPUT -s 10.151.36.0/24 -m time --timestart 08:00 --timestop 17:00 --weekdays Mon,Tue,Wed,Thu,Fri -j ACCEPT
+iptables -A INPUT -s 10.151.36.0/24 -m time --timestart 17:01 --timestop 07:59 -j REJECT
+```
+
 7. Akses dari subnet INFORMATIKA hanya diperbolehkan pada pukul 17.00 hingga pukul
 09.00 setiap harinya
 Selain itu paket akan di REJECT.
 Karena kita memiliki 2 buah WEB Server, 
+
+jawab :
+
+jalankan iptables di UML MEW
+
+```
+iptables -A INPUT -s 10.151.252.0/22 -m time --timestart 09:01 --timestop 16:59 -j REJECT
+```
 
 9.Satoshi ingin PIKACHU disetting sehingga setiap
 request dari client yang mengakses DNS Server akan didistribusikan secara bergantian pada
@@ -100,6 +158,32 @@ Karena banyak paket yang di drop oleh tim kalian,
 10. Satoshi ingin agar semua paket didrop oleh
 firewall (dalam topologi) tercatat dalam log pada setiap UML yang memiliki aturan drop.
 
+jalankan iptables di UML PIKACHU
+
+```
+iptables -N LOGGING 
+iptables -A FORWARD -j LOGGING 
+iptables -A LOGGING -m limit --limit 2/min -j LOG --log-prefix "IPTables-Dropped: " --log-level 4 
+iptables -A LOGGING -j DROP
+```
+
+jalankan iptables di UML MEW
+
+```
+iptables -N LOGGING 
+iptables -A INPUT -j LOGGING 
+iptables -A LOGGING -m limit --limit 2/min -j LOG --log-prefix "IPTables-Dropped: " --log-level 4 
+iptables -A LOGGING -j DROP
+```
+
+jalankan iptables di UML ARTICUNO
+
+```
+iptables -N LOGGING 
+iptables -A INPUT -j LOGGING 
+iptables -A LOGGING -m limit --limit 2/min -j LOG --log-prefix "IPTables-Dropped: " --log-level 4 
+iptables -A LOGGING -j DROP
+```
 # Kendala yang dialami 
 
 - Keterbatasan waktu
